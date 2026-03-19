@@ -211,9 +211,11 @@ async def export_report(
                 v.status, v.acknowledged_by, v.note,
             ])
         output.seek(0)
+        # UTF-8 BOM 추가 — Excel 등에서 한글 깨짐 방지
+        bom = "\ufeff"
         return StreamingResponse(
-            iter([output.getvalue()]),
-            media_type="text/csv",
+            iter([bom + output.getvalue()]),
+            media_type="text/csv; charset=utf-8-sig",
             headers={"Content-Disposition": "attachment; filename=violations_report.csv"},
         )
     else:
