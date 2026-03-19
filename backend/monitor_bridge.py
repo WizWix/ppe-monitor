@@ -122,9 +122,18 @@ def _build_monitor(cam_source: str, conf_helmet: float, conf_vest: float):
         import workplace_safety_monitor as wsm  # noqa: F401
 
         # Prefer TensorRT engine if available (significantly faster)
+        # TensorRT engines require CUDA ≥ 12; fall back to .pt on older versions
+        _cuda_ok = torch.cuda.is_available()
+        _cuda_major = int(torch.version.cuda.split(".")[0]) if _cuda_ok and torch.version.cuda else 0
+        _use_engine = _cuda_ok and _cuda_major >= 12
+
         def _find_model(stem: str) -> str:
             engine = BASE_DIR / f"{stem}.engine"
-            return str(engine) if engine.exists() else str(BASE_DIR / f"{stem}.pt")
+            if _use_engine and engine.exists():
+                return str(engine)
+            if not _use_engine and engine.exists():
+                logger.info("TensorRT engine found but CUDA %s < 12 — using .pt fallback", torch.version.cuda)
+            return str(BASE_DIR / f"{stem}.pt")
 
         person_model = _find_model("yolo12n")
         ppe_model    = _find_model("best")
